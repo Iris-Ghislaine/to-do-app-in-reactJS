@@ -63,45 +63,44 @@ The app features a clean, responsive design with **dark mode support**, **task c
 
 ## Usage
 
-1. **Add a Task**
+1. Add a Task
 
    * Enter a description.
    * Choose a category and priority.
-   * Click **Add Task** or press **Enter**.
+   * Click *Add Task* or press *Enter*.
 
-2. **Edit a Task**
+2. Edit a *Task**
 
    * Click the ✏️ icon.
    * Update text, category, or priority.
-   * Click **Save** or press **Enter**.
+   * Click *Save* or press *Enter*.
 
-3. **Delete a Task**
+3. Delete a Task
 
    * Click the 🗑️ icon to remove it.
 
-4. **Mark as Complete**
+4. Mark as Complete
 
-   * Check the box next to a task.
+   Check the box next to a task.
 
-5. **Reorder Tasks**
+5. Reorder Tasks
+    Drag and drop tasks to reorder them.
 
-   * Drag and drop tasks to reorder them.
+6. Search & Filter
 
-6. **Search & Filter**
+   Use the search bar or dropdown filters.
 
-   * Use the search bar or dropdown filters.
+7. View Stats
 
-7. **View Stats**
+   Click *Stats* to view task summary.
 
-   * Click **Stats** to view task summary.
+8. Toggle Dark Mode
 
-8. **Toggle Dark Mode**
+   Click 🌙 or ☀️ to change theme.
 
-   * Click 🌙 or ☀️ to change theme.
+9. Clear Completed
 
-9. **Clear Completed**
-
-   * Click **Clear Completed** to remove done tasks.
+   Click *Clear Completed* to remove done tasks.
 
 ---
 
