@@ -123,10 +123,10 @@ TODO-APP/
 ## Screenshots
 
 * Light Mode Overview
-![alt text](public/screenshots/whitemode.png)
+public/screenshots/whitemode.png
 * Dark Mode Overview
-![alt text](public/screenshots/darkmode.png)
+public/screenshots/darkmode.png
 * Edit Task Modal
-![alt text](public/screenshots/editmode.png)
+public/screenshots/editmode.png
 * Task Statistics Panel
-![alt text](public/screenshots/Taskpanel.png)
+public/screenshots/Taskpanel.png
