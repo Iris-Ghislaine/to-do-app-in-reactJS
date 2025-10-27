@@ -37,8 +37,7 @@ The app features a clean, responsive design with **dark mode support**, **task c
    ```bash
    git clone https://github.com/Iris-Ghislaine/to-do-app-in-reactJS
    cd to-do-app-in-reactJS
-````
-
+   
 2. **Install Dependencies**
 
    ```bash
