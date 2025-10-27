@@ -122,10 +122,14 @@ TODO-APP/
 ## Screenshots
 
 * Light Mode Overview
-public/screenshots/whitemode.png
+<img width="1420" height="870" alt="Screenshot 2025-10-27 234914" src="https://github.com/user-attachments/assets/134dc13a-f10f-45e4-86d1-a9dd022dff78" />
+
 * Dark Mode Overview
-public/screenshots/darkmode.png
+<img width="1549" height="871" alt="Screenshot 2025-10-27 234903" src="https://github.com/user-attachments/assets/55dff94b-f1be-4eb0-8a8b-be92eb0ea74b" />
+
 * Edit Task Modal
-public/screenshots/editmode.png
+<img width="1327" height="878" alt="Screenshot 2025-10-28 000410" src="https://github.com/user-attachments/assets/e1509314-c918-4401-a7a2-1efb8934e225" />
+
 * Task Statistics Panel
-public/screenshots/Taskpanel.png
+<img width="1292" height="292" alt="Screenshot 2025-10-28 000513" src="https://github.com/user-attachments/assets/e323a9b7-48fa-4d43-9a18-74b5738def2e" />
+
