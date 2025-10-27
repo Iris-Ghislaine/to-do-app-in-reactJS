@@ -23,7 +23,7 @@ The app features a clean, responsive design with **dark mode support**, **task c
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Frontend**: React (JavaScript)
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
@@ -31,7 +31,7 @@ The app features a clean, responsive design with **dark mode support**, **task c
 
 ---
 
-## ⚙️ Installation
+##  Installation
 
 1. **Clone the Repository**
    ```bash
