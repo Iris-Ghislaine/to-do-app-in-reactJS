@@ -124,7 +124,6 @@ export default function App() {
     el.style.left = `${e.clientX - dragOffset.current.x}px`;
     el.style.top = `${e.clientY - dragOffset.current.y}px`;
   };
-
   const onMouseUp = () => {
     if (!draggingId) return;
 
@@ -134,66 +133,79 @@ export default function App() {
       return;
     }
 
-    const rect = el.getBoundingClientRect();
-    let x = rect.left;
-    let y = rect.top;
-    const w = rect.width;
-    const h = rect.height;
+    let x = el.getBoundingClientRect().left;
+    let y = el.getBoundingClientRect().top;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
 
-    // Protected zone: Add Panel
+    // Add panel protection
     const addPanel = document.getElementById("add-panel");
-    const panelRect = addPanel?.getBoundingClientRect() || {
-      left: 0,
-      top: 0,
-      right: 0,
-      bottom: 0,
+    const panelRect = addPanel?.getBoundingClientRect();
+
+    const isOverlapping = (x1, y1) => {
+      const rect1 = { left: x1, top: y1, right: x1 + w, bottom: y1 + h };
+
+      // Check against add panel
+      if (panelRect && 
+          rect1.left < panelRect.right + 60 &&
+          rect1.right > panelRect.left - 60 &&
+          rect1.top < panelRect.bottom + 120 &&
+          rect1.bottom > panelRect.top - 60) {
+        return true;
+      }
+
+      // Check against other tasks
+      return tasks.some(t => {
+        if (t.id === draggingId) return false;
+        const tx = t.x || 150;
+        const ty = t.y || 200;
+        const rect2 = { left: tx, top: ty, right: tx + w, bottom: ty + h + 30 };
+        return (
+          rect1.left < rect2.right + 30 &&
+          rect1.right > rect2.left - 30 &&
+          rect1.top < rect2.bottom + 30 &&
+          rect1.bottom > rect2.top - 30
+        );
+      });
     };
 
-    const protectedZones = [
-      {
-        left: panelRect.left - 50,
-        top: panelRect.top - 50,
-        right: panelRect.right + 50,
-        bottom: panelRect.bottom + 100,
-      },
-      ...tasks
-        .filter((t) => t.id !== draggingId)
-        .map((t) => ({
-          left: t.x || 0,
-          top: t.y || 0,
-          right: (t.x || 0) + w + 20,
-          bottom: (t.y || 0) + h + 40,
-        })),
-    ];
-
-    let attempts = 0;
-    while (attempts < 200) {
-      const collides = protectedZones.some(
-        (zone) =>
-          x < zone.right &&
-          x + w > zone.left &&
-          y < zone.bottom &&
-          y + h > zone.top
-      );
-
-      if (!collides) break;
-
-      x += 40;
-      if (x + w > window.innerWidth - 50) {
-        x = 80;
-        y += 100;
+    // Try to keep it where user dropped it
+    if (!isOverlapping(x, y)) {
+      // Perfect! No overlap
+    } else {
+      // Find nearest empty spot (spiral outward)
+      const step = 35;
+      let distance = 1;
+      while (distance < 30) {
+        for (let dx = -distance; dx <= distance; dx++) {
+          for (let dy = -distance; dy <= distance; dy++) {
+            if (Math.abs(dx) < distance && Math.abs(dy) < distance) continue;
+            const testX = x + dx * step;
+            const testY = y + dy * step;
+            if (testX > 30 && testX + w < window.innerWidth - 30 &&
+                testY > 30 && testY + h < window.innerHeight - 30 &&
+                !isOverlapping(testX, testY)) {
+              x = testX;
+              y = testY;
+              break;
+            }
+          }
+          if (Math.abs(x - el.getBoundingClientRect().left) > 10) break;
+        }
+        if (Math.abs(x - el.getBoundingClientRect().left) > 10) break;
+        distance++;
       }
-      attempts++;
     }
 
-    x = Math.max(20, Math.min(x, window.innerWidth - w - 20));
-    y = Math.max(20, Math.min(y, window.innerHeight - h - 20));
+    // Final clamp to screen
+    x = Math.max(30, Math.min(x, window.innerWidth - w - 30));
+    y = Math.max(30, Math.min(y, window.innerHeight - h - 30));
 
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === draggingId ? { ...t, x: Math.round(x), y: Math.round(y) } : t
-      )
-    );
+    setTasks(prev => prev.map(t =>
+      t.id === draggingId
+        ? { ...t, x: Math.round(x), y: Math.round(y) }
+        : t
+    ));
 
     setDraggingId(null);
   };
@@ -472,7 +484,7 @@ export default function App() {
           }`}
         >
           <Lightbulb className="h-6 w-6 text-yellow-400" />
-          Drag anywhere a task and Drop it anywhere• 
+          Drag anywhere a task and Drop it anywhere • 
         </p>
       </div>
     </div>
