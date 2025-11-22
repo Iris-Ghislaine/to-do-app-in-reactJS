@@ -3,13 +3,9 @@ import {
   Briefcase,
   User,
   GraduationCap,
-  PieChart,
   Sun,
   Moon,
   Plus,
-  Search,
-  CheckCheck,
-  ClipboardList,
   Trash2,
   Flag,
   Lightbulb,
@@ -25,23 +21,17 @@ export default function App() {
   const [taskText, setTaskText] = useState("");
   const [category, setCategory] = useState("Work");
   const [priority, setPriority] = useState("Medium");
-  const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("All");
-  const [filterPriority, setFilterPriority] = useState("All");
   const [darkMode, setDarkMode] = useState(
-    localStorage.getItem("theme") === "dark"
+    () => localStorage.getItem("theme") === "dark"
   );
-  const [draggedIndex, setDraggedIndex] = useState(null);
-  const [showStats, setShowStats] = useState(false);
+
+  const [draggingId, setDraggingId] = useState(null);
+  const dragOffset = useRef({ x: 0, y: 0 });
+
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editText, setEditText] = useState("");
   const [editCategory, setEditCategory] = useState("Work");
   const [editPriority, setEditPriority] = useState("Medium");
-
-  // Sticky drag state
-  const [stickyDragging, setStickyDragging] = useState(null);
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const containerRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
@@ -52,41 +42,32 @@ export default function App() {
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  // === Existing functions unchanged (addTask, deleteTask, etc.) ===
   const addTask = () => {
     if (!taskText.trim()) return;
-    setTasks([
-      ...tasks,
-      {
-        id: Date.now(),
-        text: taskText.trim(),
-        category,
-        priority,
-        completed: false,
-        createdAt: new Date().toISOString(),
-        x: null,  // explicitly initialize
-        y: null,
-      },
-    ]);
+
+    const newTask = {
+      id: Date.now(),
+      text: taskText.trim(),
+      category,
+      priority,
+      completed: false,
+      x: Math.random() * (window.innerWidth - 380) + 100,
+      y: Math.random() * (window.innerHeight - 280) + 120,
+    };
+
+    setTasks((prev) => [...prev, newTask]);
     setTaskText("");
   };
 
   const deleteTask = (id) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+    setTasks((prev) => prev.filter((t) => t.id !== id));
     if (editingTaskId === id) setEditingTaskId(null);
   };
 
   const toggleTask = (id) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
     );
-  };
-
-  const clearCompleted = () => {
-    setTasks(tasks.filter((task) => !task.completed));
-    setEditingTaskId(null);
   };
 
   const startEditing = (task) => {
@@ -96,332 +77,403 @@ export default function App() {
     setEditPriority(task.priority);
   };
 
-  const saveEdit = (id) => {
+  const saveEdit = () => {
     if (!editText.trim()) return;
-    setTasks(
-      tasks.map((task) =>
-        task.id === id
-          ? { ...task, text: editText.trim(), category: editCategory, priority: editPriority }
-          : task
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === editingTaskId
+          ? {
+              ...t,
+              text: editText.trim(),
+              category: editCategory,
+              priority: editPriority,
+            }
+          : t
       )
     );
     setEditingTaskId(null);
     setEditText("");
-    setEditCategory("Work");
-    setEditPriority("Medium");
   };
 
   const cancelEdit = () => {
     setEditingTaskId(null);
     setEditText("");
-    setEditCategory("Work");
-    setEditPriority("Medium");
   };
 
-  // Reordering drag (unchanged)
-  const handleDragStart = (e, index) => {
-    if (editingTaskId) return;
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.currentTarget.style.opacity = "0.5";
-  };
-
-  const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = "1";
-    setDraggedIndex(null);
-  };
-
-  const handleDragOver = (e) => {
-    if (editingTaskId) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
-
-  const handleDrop = (e, dropIndex) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === dropIndex || editingTaskId) return;
-
-    const updatedTasks = [...tasks];
-    const [draggedTask] = updatedTasks.splice(draggedIndex, 1);
-    updatedTasks.splice(dropIndex, 0, draggedTask);
-    setTasks(updatedTasks);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") addTask();
-  };
-
-  const handleEditKeyPress = (e, id) => {
-    if (e.key === "Enter") saveEdit(id);
-  };
-
-  const getPriorityColor = (priority) => {
-    if (priority === "High") return "bg-red-500 text-white";
-    if (priority === "Medium") return "bg-amber-500 text-white";
-    return "bg-emerald-500 text-white";
-  };
-
-  const getCategoryIcon = (category) => {
-    if (category === "Work") return Briefcase;
-    if (category === "Personal") return User;
-    return GraduationCap;
-  };
-
-  const filteredTasks = tasks.filter((task) => {
-    const matchSearch = task.text.toLowerCase().includes(search.toLowerCase());
-    const matchCategory =
-      filterCategory === "All" || task.category === filterCategory;
-    const matchPriority =
-      filterPriority === "All" || task.priority === filterPriority;
-    return matchSearch && matchCategory && matchPriority;
-  });
-
-  // === STICKY DRAG: Fixed & Improved ===
-  const startStickyDrag = (e, taskId) => {
-    if (editingTaskId || e.button !== 0) return; // only left click
+  // === Smart Drag with Full Collision Detection (including Add Panel) ===
+  const startDrag = (e, id) => {
+    if (editingTaskId || e.button !== 0) return;
     e.stopPropagation();
 
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const containerRect = containerRef.current.getBoundingClientRect();
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
 
     dragOffset.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
 
-    setStickyDragging(taskId);
+    setDraggingId(id);
   };
 
-  const doStickyDrag = (e) => {
-    if (stickyDragging === null) return;
+  const onMouseMove = (e) => {
+    if (!draggingId) return;
+    const el = document.querySelector(`[data-task-id="${draggingId}"]`);
+    if (!el) return;
 
-    const card = document.querySelector(`[data-task-id="${stickyDragging}"]`);
-    if (!card || !containerRef.current) return;
-
-    const containerRect = containerRef.current.getBoundingClientRect();
-
-    let newX = e.clientX - containerRect.left - dragOffset.current.x;
-    let newY = e.clientY - containerRect.top - dragOffset.current.y;
-
-    // Temporary move
-    card.style.left = `${newX}px`;
-    card.style.top = `${newY}px`;
+    el.style.left = `${e.clientX - dragOffset.current.x}px`;
+    el.style.top = `${e.clientY - dragOffset.current.y}px`;
   };
 
-  const endStickyDrag = () => {
-    if (stickyDragging === null) return;
+  const onMouseUp = () => {
+    if (!draggingId) return;
 
-    const card = document.querySelector(`[data-task-id="${stickyDragging}"]`);
-    if (!card || !containerRef.current) {
-      setStickyDragging(null);
+    const el = document.querySelector(`[data-task-id="${draggingId}"]`);
+    if (!el) {
+      setDraggingId(null);
       return;
     }
 
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const cardRect = card.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    let x = rect.left;
+    let y = rect.top;
+    const w = rect.width;
+    const h = rect.height;
 
-    let finalX = cardRect.left - containerRect.left;
-    let finalY = cardRect.top - containerRect.top;
+    // Protected zone: Add Panel
+    const addPanel = document.getElementById("add-panel");
+    const panelRect = addPanel?.getBoundingClientRect() || {
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+    };
 
-    const cardWidth = cardRect.width;
-    const cardHeight = cardRect.height;
-
-    // Avoid overlapping other positioned cards
-    const occupied = tasks
-      .filter(t => t.id !== stickyDragging && t.x !== null && t.y !== null)
-      .map(t => ({
-        left: t.x,
-        top: t.y,
-        right: t.x + cardWidth,
-        bottom: t.y + cardHeight + 30, // small buffer
-      }));
+    const protectedZones = [
+      {
+        left: panelRect.left - 50,
+        top: panelRect.top - 50,
+        right: panelRect.right + 50,
+        bottom: panelRect.bottom + 100,
+      },
+      ...tasks
+        .filter((t) => t.id !== draggingId)
+        .map((t) => ({
+          left: t.x || 0,
+          top: t.y || 0,
+          right: (t.x || 0) + w + 20,
+          bottom: (t.y || 0) + h + 40,
+        })),
+    ];
 
     let attempts = 0;
-    while (attempts < 100) {
-      const collides = occupied.some(area =>
-        finalX < area.right &&
-        finalX + cardWidth > area.left &&
-        finalY < area.bottom &&
-        finalY + cardHeight > area.top
+    while (attempts < 200) {
+      const collides = protectedZones.some(
+        (zone) =>
+          x < zone.right &&
+          x + w > zone.left &&
+          y < zone.bottom &&
+          y + h > zone.top
       );
 
       if (!collides) break;
 
-      finalX += 25;
-      if (finalX + cardWidth > containerRect.width) {
-        finalX = 20;
-        finalY += 80;
+      x += 40;
+      if (x + w > window.innerWidth - 50) {
+        x = 80;
+        y += 100;
       }
       attempts++;
     }
 
-    // Clamp within container
-    finalX = Math.max(0, Math.min(finalX, containerRect.width - cardWidth));
-    finalY = Math.max(0, Math.min(finalY, containerRect.height - cardHeight - 100));
+    x = Math.max(20, Math.min(x, window.innerWidth - w - 20));
+    y = Math.max(20, Math.min(y, window.innerHeight - h - 20));
 
-    // Save final position
-    setTasks(prev => prev.map(t =>
-      t.id === stickyDragging
-        ? { ...t, x: Math.round(finalX), y: Math.round(finalY) }
-        : t
-    ));
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === draggingId ? { ...t, x: Math.round(x), y: Math.round(y) } : t
+      )
+    );
 
-    setStickyDragging(null);
+    setDraggingId(null);
   };
 
   useEffect(() => {
-    if (stickyDragging !== null) {
-      document.addEventListener("mousemove", doStickyDrag);
-      document.addEventListener("mouseup", endStickyDrag);
+    if (draggingId !== null) {
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
       return () => {
-        document.removeEventListener("mousemove", doStickyDrag);
-        document.removeEventListener("mouseup", endStickyDrag);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
       };
     }
-  }, [stickyDragging]);
+  }, [draggingId]);
+
+  const getPriorityColor = (p) =>
+    p === "High"
+      ? "bg-red-500"
+      : p === "Medium"
+      ? "bg-amber-500"
+      : "bg-emerald-500";
+
+  const getCategoryIcon = (c) =>
+    c === "Work" ? Briefcase : c === "Personal" ? User : GraduationCap;
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" : "bg-gradient-to-br from-blue-50 via-white to-cyan-50"}`}>
-      <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Header & Inputs - unchanged */}
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className={`text-4xl sm:text-5xl font-bold mb-2 ${darkMode ? "bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent" : "bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent"}`}>
-              ToDo List App
-            </h1>
-            <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
-              Organize, prioritize, and accomplish your goals
-            </p>
-          </div>
-          <button onClick={() => setDarkMode(!darkMode)} className={`p-3 rounded-lg font-medium transition-all ${darkMode ? "bg-slate-700 hover:bg-slate-600 text-yellow-400" : "bg-white hover:bg-slate-50 text-slate-700 shadow-md"}`}>
-            {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    <div
+      className={`fixed inset-0 transition-all duration-500
+        ${
+          darkMode
+            ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white"
+            : "bg-gradient-to-br from-white via-blue-50 to-cyan-50 text-slate-900"
+        }`}
+    >
+      {/* Floating Add Panel - Always on Top & Protected */}
+      <div
+        id="add-panel"
+        className={`fixed top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-4 p-8 rounded-3xl shadow-2xl border backdrop-blur-xl
+          ${
+            darkMode
+              ? "bg-slate-800/80 border-slate-700 text-white"
+              : "bg-white/80 border-slate-200 text-slate-900"
+          }`}
+        style={{ pointerEvents: "auto" }}
+      >
+        <input
+          value={taskText}
+          onChange={(e) => setTaskText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addTask()}
+          placeholder="What needs to be done?"
+          className={`px-6 py-4 rounded-2xl text-lg focus:ring-4 w-full
+            ${
+              darkMode
+                ? "bg-slate-700 border-slate-600 text-white placeholder-slate-300 focus:ring-cyan-500/40"
+                : "bg-white border-slate-600 text-slate-900 placeholder-gray-400 focus:ring-blue-400/40"
+            }`}
+        />
+        <div className="flex gap-4 items-center">
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className={`px-5 py-3 rounded-xl
+              ${
+                darkMode
+                  ? "bg-slate-700 border-slate-600 text-white"
+                  : "bg-white border-gray-300 text-slate-900"
+              }`}
+          >
+            <option
+              className={
+                darkMode ? "bg-slate-800 text-white" : "bg-white text-slate-900"
+              }
+            >
+              Work
+            </option>
+            <option
+              className={
+                darkMode ? "bg-slate-800 text-white" : "bg-white text-slate-900"
+              }
+            >
+              Personal
+            </option>
+            <option
+              className={
+                darkMode ? "bg-slate-800 text-white" : "bg-white text-slate-900"
+              }
+            >
+              School
+            </option>
+          </select>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className={`px-5 py-3 rounded-xl
+              ${
+                darkMode
+                  ? "bg-slate-700 border-slate-600 text-white"
+                  : "bg-white border-gray-300 text-slate-900"
+              }`}
+          >
+            <option className="bg-slate-800">High</option>
+            <option className="bg-slate-800">Medium</option>
+            <option className="bg-slate-800">Low</option>
+          </select>
+          <button
+            onClick={addTask}
+            disabled={!taskText.trim()}
+            className={`px-8 py-4 rounded-2xl font-bold shadow-xl flex items-center gap-3
+              ${
+                !taskText.trim()
+                  ? "opacity-50 cursor-not-allowed"
+                  : darkMode
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-cyan-500/50"
+                  : "bg-gradient-to-r from-cyan-400 to-blue-600 text-white hover:shadow-blue-400/50"
+              }`}
+          >
+            <Plus className="h-6 w-6" /> Add Task
           </button>
         </div>
+      </div>
 
-        {/* Add Task Form - unchanged */}
-        <div className={`p-6 rounded-2xl mb-6 shadow-xl ${darkMode ? "bg-slate-800" : "bg-white"}`}>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input value={taskText} onChange={(e) => setTaskText(e.target.value)} onKeyPress={handleKeyPress} type="text" placeholder="What needs to be done?" className={`flex-1 px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${darkMode ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-500"}`} />
-              <button onClick={addTask} disabled={!taskText.trim()} className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg">
-                <Plus className="inline-block mr-2 h-5 w-5" /> Add Task
-              </button>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className={`px-4 py-2 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-slate-700 border-slate-600 text-white" : "bg-slate-50 border-slate-200 text-slate-900"}`}>
-                <option>Work</option><option>Personal</option><option>School</option>
-              </select>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)} className={`px-4 py-2 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-slate-700 border-slate-600 text-white" : "bg-slate-50 border-slate-200 text-slate-900"}`}>
-                <option>High</option><option>Medium</option><option>Low</option>
-              </select>
-            </div>
-          </div>
-        </div>
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        className={`fixed top-8 right-8 z-50 p-4 rounded-2xl border backdrop-blur-xl
+          ${
+            darkMode
+              ? "bg-slate-800 border-slate-600 hover:bg-slate-700 text-white"
+              : "bg-white border-gray-300 hover:bg-gray-100 text-slate-900"
+          }`}
+      >
+        {darkMode ? (
+          <Sun className="h-7 w-7 text-yellow-400" />
+        ) : (
+          <Moon className="h-7 w-7 text-slate-700" />
+        )}
+      </button>
 
-        {/* TASKS CONTAINER - Now supports free positioning */}
-        <div ref={containerRef} className="relative min-h-screen bg-transparent">
-          {filteredTasks.length === 0 ? (
-            <div className={`p-12 rounded-2xl text-center ${darkMode ? "bg-slate-800" : "bg-white shadow-md"}`}>
-              <ClipboardList className={`inline-block text-6xl mb-4 ${darkMode ? "text-slate-600" : "text-slate-300"}`} />
-              <p className={`text-xl ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                {search || filterCategory !== "All" || filterPriority !== "All" ? "No tasks match your filters" : "No tasks yet. Add one to get started!"}
-              </p>
-            </div>
-          ) : (
-            filteredTasks.map((task, index) => {
-              const CategoryIcon = getCategoryIcon(task.category);
-              const isSticky = task.x !== null && task.y !== null;
+      {/* Sticky Tasks */}
+      {tasks.map((task) => {
+        const Icon = getCategoryIcon(task.category);
+        const isDragging = draggingId === task.id;
 
-              return (
-                <div
-                  key={task.id}
-                  data-task-id={task.id}
-                  draggable={editingTaskId !== task.id}
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onMouseDown={(e) => startStickyDrag(e, task.id)}
-                  style={
-                    isSticky
-                      ? {
-                          position: "absolute",
-                          left: `${task.x}px`,
-                          top: `${task.y}px`,
-                          width: "320px",
-                          cursor: stickyDragging === task.id ? "grabbing" : "grab",
-                          zIndex: stickyDragging === task.id ? 50 : 10,
-                          transform: stickyDragging === task.id ? "rotate(3deg) scale(1.05)" : "none",
-                          transition: stickyDragging === task.id ? "none" : "all 0.2s ease",
-                        }
-                      : { width: "100%" }
-                  }
-                  className={`
-                    p-5 rounded-xl shadow-lg transition-all duration-300 select-none
-                    ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white"}
-                    ${task.completed ? "opacity-60" : ""}
-                    ${draggedIndex === index ? "opacity-50 scale-105" : ""}
-                    ${stickyDragging === task.id ? "shadow-2xl ring-4 ring-blue-500/30" : "hover:shadow-xl"}
-                  `}
-                >
-                  {/* Task content - unchanged */}
-                  {editingTaskId === task.id ? (
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <input value={editText} onChange={(e) => setEditText(e.target.value)} onKeyPress={(e) => handleEditKeyPress(e, task.id)} type="text" placeholder="Edit task..." className={`flex-1 px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${darkMode ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-500"}`} />
-                        <div className="flex gap-2">
-                          <button onClick={() => saveEdit(task.id)} disabled={!editText.trim()} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg">Save</button>
-                          <button onClick={cancelEdit} className={`px-4 py-2 rounded-lg font-medium transition-all ${darkMode ? "bg-slate-700 hover:bg-slate-600 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"}`}>Cancel</button>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className={`px-4 py-2 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-slate-700 border-slate-600 text-white" : "bg-slate-50 border-slate-200 text-slate-900"}`}>
-                          <option>Work</option><option>Personal</option><option>School</option>
-                        </select>
-                        <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)} className={`px-4 py-2 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-slate-700 border-slate-600 text-white" : "bg-slate-50 border-slate-200 text-slate-900"}`}>
-                          <option>High</option><option>Medium</option><option>Low</option>
-                        </select>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-4">
-                      <input type="checkbox" checked={task.completed} onChange={() => toggleTask(task.id)} className="mt-1 h-5 w-5 rounded border-2 text-blue-500 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-lg font-medium mb-2 break-words ${task.completed ? "line-through" : ""} ${darkMode ? "text-white" : "text-slate-900"}`}>
-                          {task.text}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${darkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-700"}`}>
-                            <CategoryIcon className="inline-block mr-2 h-4 w-4" /> {task.category}
-                          </span>
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                            <Flag className="inline-block mr-2 h-4 w-4" /> {task.priority}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => startEditing(task)} className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
-                          <Pencil className="h-5 w-5" />
-                        </button>
-                        <button onClick={() => deleteTask(task.id)} className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+        return (
+          <div
+            key={task.id}
+            data-task-id={task.id}
+            onMouseDown={(e) => startDrag(e, task.id)}
+            style={{
+              position: "fixed",
+              left: task.x ?? 150,
+              top: task.y ?? 200,
+              width: "360px",
+              cursor: isDragging ? "grabbing" : "grab",
+              zIndex: isDragging ? 999 : 10,
+              transform: isDragging
+                ? "rotate(8deg) scale(1.07)"
+                : "rotate(0deg)",
+              transition: isDragging
+                ? "none"
+                : "all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
+            }}
+            className={`p-4 rounded-3xl shadow-2xl border backdrop-blur-xl select-none transition 
+              ${
+                darkMode
+                  ? "bg-slate-800 border-slate-700 text-white"
+                  : "bg-white border-gray-200 text-slate-900"
+              }
+              ${task.completed ? "opacity-60" : ""}
+              ${
+                isDragging
+                  ? "shadow-3xl ring-4 ring-cyan-400/50"
+                  : "hover:shadow-3xl"
+              }
+            `}
+          >
+            {editingTaskId === task.id ? (
+              <div className="space-y-4">
+                <input
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                  className={`w-full px-4 py-3 rounded-xl border text-base
+                    ${
+                      darkMode
+                        ? "bg-slate-700 border-slate-600 text-white placeholder-slate-300 focus:ring-cyan-500/30"
+                        : "bg-white border-gray-300 text-slate-900 placeholder-gray-400 focus:ring-blue-400/30"
+                    }`}
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={saveEdit}
+                    className="px-5 py-2 rounded-xl text-white bg-cyan-600 font-medium"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="px-5 py-2 rounded-xl text-white bg-slate-600"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              );
-            })
-          )}
-        </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-5 min-h-20">
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  onChange={() => toggleTask(task.id)}
+                  className={`mt-1 h-6 w-6 rounded border-2 cursor-pointer text-dark
+                    ${
+                      darkMode
+                        ? "border-blue-600 text-blue-600"
+                        : "border-blue-600 text-blue-600"
+                    }
+                  `}
+                />
+                <div className="flex-1">
+                  <h3
+                    className={`text-xl font-semibold ${
+                      task.completed ? "line-through" : ""
+                    }`}
+                  >
+                    {task.text}
+                  </h3>
+                  <div className="flex gap-3 mt-4">
+                    <span
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                      ${
+                        darkMode
+                          ? "bg-slate-700 text-slate-300"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" /> {task.category}
+                    </span>
+                    <span
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold text-white ${getPriorityColor(
+                        task.priority
+                      )}`}
+                    >
+                      <Flag className="h-5 w-5" /> {task.priority}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => startEditing(task)}
+                    className="p-3 hover:bg-white/20 rounded-xl transition"
+                  >
+                    <Pencil className="h-5 w-5 text-blue-400" />
+                  </button>
+                  <button
+                    onClick={() => deleteTask(task.id)}
+                    className="p-3 hover:bg-white/20 rounded-xl transition"
+                  >
+                    <Trash2 className="h-5 w-5 text-red-400" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
 
-        <div className={`mt-8 text-center text-sm ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-          <p>
-            <Lightbulb className="inline-block mr-2 h-5 w-5" />
-            Tip: Click and drag tasks to move them freely like sticky notes!
-          </p>
-        </div>
+      {/* Tip */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+        <p
+          className={`flex items-center gap-3 px-8 py-4 rounded-full backdrop-blur-xl text-sm font-medium border
+          ${
+            darkMode
+              ? "bg-slate-800 border-slate-700 text-slate-300"
+              : "bg-white border-gray-200 text-slate-700"
+          }`}
+        >
+          <Lightbulb className="h-6 w-6 text-yellow-400" />
+          Drag anywhere a task and Drop it anywhere• 
+        </p>
       </div>
     </div>
   );

@@ -1,22 +1,18 @@
 @import "tailwindcss";
 
-@theme {
-  /* Optional: you can define custom colors or transitions here later */
-}
-
 /* Body base styles with theme transition */
 html {
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-body {
+/* body {
   @apply bg-gray-50 text-gray-900;
-}
+} */
 
 /* Enable dark mode with the “dark” class */
-:root.dark body {
+/* :root.dark body {
   @apply bg-gray-900 text-gray-100;
-}
+} */
 
 /* Optional – smooth hover color transitions */
 * {
